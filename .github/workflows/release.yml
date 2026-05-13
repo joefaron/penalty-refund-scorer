@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+            asset: go-scorer-windows-amd64.exe
+          - goos: darwin
+            goarch: amd64
+            ext: ''
+            asset: go-scorer-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            ext: ''
+            asset: go-scorer-darwin-arm64
+          - goos: linux
+            goarch: amd64
+            ext: ''
+            asset: go-scorer-linux-amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o "${{ matrix.asset }}" .
+
+      - name: Compute SHA256
+        run: sha256sum "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            ${{ matrix.asset }}
+            ${{ matrix.asset }}.sha256
+
+  bundle-windows:
+    name: Build Windows double-click bundle
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: go-scorer-windows-amd64.exe
+          path: bundle/
+
+      - name: Assemble bundle
+        run: |
+          cd bundle
+          mv go-scorer-windows-amd64.exe go-scorer.exe
+          rm -f go-scorer-windows-amd64.exe.sha256
+          cp ../Run-PenaltyScorer.bat .
+          cp ../LICENSE .
+          cp ../README.md .
+          cd ..
+          zip -r penalty-refund-scorer-windows.zip bundle/ -x bundle/.gitkeep
+          sha256sum penalty-refund-scorer-windows.zip > penalty-refund-scorer-windows.zip.sha256
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: penalty-refund-scorer-windows.zip
+          path: |
+            penalty-refund-scorer-windows.zip
+            penalty-refund-scorer-windows.zip.sha256
+
+  release:
+    name: Publish GitHub Release
+    needs: [build, bundle-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+

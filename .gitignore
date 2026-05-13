@@ -1,0 +1,26 @@
+# Build artifacts
+go-scorer
+go-scorer.exe
+go-scorer-*
+dist/
+*.exe
+
+# CSV outputs (never commit real findings — they may carry PII)
+*.csv
+!examples/findings.csv
+
+# Per-entity JSON dumps
+per_entity_jsons/
+scored_*/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Test inputs (never commit real transcripts)
+test-transcripts/
+private-transcripts/
+*.pdf
+!examples/transcripts/*.pdf

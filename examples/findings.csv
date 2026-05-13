@@ -1,0 +1,7 @@
+entity,ein_last4,irs_name,transcripts,with_findings,our_total,by_tc,finding_idx,finding_form,finding_period,finding_tc,finding_label,finding_amount,finding_date,finding_source_pdf
+Kettleman Tax Group Inc,1138,KETTLEMAN TAX GROUP INC,1,1,2520.00,"{""186"":""1800.00"",""196"":""720.00""}",1,1120,2021,186,Federal Tax Deposit,1800.00,05-15-2022,kettleman-tax-group-inc.pdf
+Kettleman Tax Group Inc,1138,KETTLEMAN TAX GROUP INC,1,1,2520.00,"{""186"":""1800.00"",""196"":""720.00""}",2,1120,2021,196,Interest Assessed,720.00,05-15-2022,kettleman-tax-group-inc.pdf
+Mesa Verde Bank Corp,4422,MESA VERDE BANK CORP,1,0,0.00,{},,,,,,,,
+Saul Goodman Holdings Llc,0976,SAUL GOODMAN HOLDINGS LLC,1,1,1250.00,"{""166"":""1000.00"",""196"":""250.00""}",1,941,2020Q2,166,Failure to File,1000.00,11-30-2020,saul-goodman-holdings-llc.pdf
+Saul Goodman Holdings Llc,0976,SAUL GOODMAN HOLDINGS LLC,1,1,1250.00,"{""166"":""1000.00"",""196"":""250.00""}",2,941,2020Q2,196,Interest Assessed,250.00,11-30-2020,saul-goodman-holdings-llc.pdf
+Wexler Mcgill Llp,8801,WEXLER MCGILL LLP,1,0,0.00,{},,,,,,,,
