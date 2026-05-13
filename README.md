@@ -35,16 +35,32 @@ Walks a folder recursively, parses every IRS Account Transcript PDF, and applies
 
 Per-entity output includes the **EIN last-4** and the **truncated taxpayer name** as printed on the transcript. (IRS transcripts mask the first five EIN digits as `XX-XXX####` and use a shortened name format, so we surface only what's actually on the document — full EIN and full legal name are not in the source data.)
 
+## Compatible input sources
+
+The scorer is content-signature based — it reads the PDF text for the IRS Account Transcript header markers (`Form X Account Transcript`, `Page 1/N`, `Report for Tax Period Ending`, `Taxpayer Identification Number: XX-XXX####`) and works against transcripts exported from any of the common practitioner sources:
+
+- **IRS e-Services TDS** (Transcript Delivery System) — direct ZIP downloads from the IRS portal
+- **TaxNow** (taxnow.com)
+- **Pitbull Tax / PitBullTax** (pitbulltax.com)
+- **Canopy** (canopytax.com)
+- **TaxStatus** (taxstatus.com)
+- **Tax Help Software** (taxhelpsoftware.com)
+
+The tool **does not** pull transcripts from any of these — you bring the PDFs you've already downloaded. (Automating the pull side against IRS e-Services is a Login.gov TOS violation and a CAF-revocation risk for the practitioner; that's intentionally out of scope.)
+
 ## Input shapes
 
 The tool accepts two PDF layouts — mix them in the same run if you want:
 
-**Shape A: One PDF per form-period (TaxNow / TDS exports).** Filenames must match:
+**Shape A: One PDF per form-period.** This is the most common shape — one transcript per file. The recognized filename convention is:
+
 ```
 ACTR-{FORM}-{YEAR}.pdf            for annual forms (1040, 1120, 1065, etc.)
 ACTR-{FORM}-{YEAR}-Q{N}.pdf       for quarterly 941s (Q1-Q4)
 ```
+
 One folder per client; folder name becomes the entity name:
+
 ```
 my-clients/
 ├── Acme Restaurant Group/
@@ -53,6 +69,8 @@ my-clients/
 └── Beta Holdings LLC/
     └── ACTR-1120-2021.pdf
 ```
+
+If your filenames don't follow this convention, the scorer still reads form / period / EIN / taxpayer name **from inside the PDF**. The filename pattern is only used to bucket multiple PDFs by entity — rename or move into per-entity folders if you want the entity column to come out clean.
 
 **Shape B: One PDF per client (bundled multi-transcript export).** No naming rules. The scorer detects every transcript inside via the `Page 1/N` boundaries and `Tax Period Ending` headers. Entity name comes from the filename (date prefix stripped, Title Cased).
 
