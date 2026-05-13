@@ -93,6 +93,36 @@ If your filenames don't follow this convention, the scorer still reads form / pe
 
 Alongside the CSV the scorer writes `findings-ingest-summary.txt` — a human-readable report of every PDF scanned, what kind of document it was classified as, and why anything got skipped. Useful for partner hand-off when totals look off.
 
+## Partner handoff mode
+
+Three flags let a partner (lender, intermediate service provider, payroll processor — anyone holding a book of transcripts on their clients' behalf) run the scorer on their side and ship a CSV back without disclosing identifying information.
+
+```bash
+./go-scorer \
+  --root /path/to/archive \
+  --hmac-key 'shared-secret-2026' \
+  --bands \
+  --bucket-by ein \
+  --out partner-handoff.csv
+```
+
+| Flag | Effect |
+|---|---|
+| `--hmac-key SECRET` | Replaces `entity`, `ein_last4`, `irs_name`, and `finding_source_pdf` columns with a 16-char HMAC-SHA256 hash of the EIN (or original entity name when EIN is absent). Deterministic — same input + same secret → same hash, so both sides can join on the hash without exchanging plaintext identifiers. |
+| `--bands` | Quantizes `our_total` into coarse bands (`$0`, `$1-$4,999`, `$5,000-$24,999`, `$25,000-$99,999`, `$100,000+`) and suppresses per-finding rows. Lower precision for use cases where exact dollar amounts are over-disclosing. |
+| `--bucket-by ein` | Groups PDFs by EIN-last-4 instead of by folder/filename. Useful when the partner archive is a flat directory and the EIN inside each transcript is the only reliable identity signal. |
+
+The flags compose freely. The canonical "send us a CSV we can join against without seeing your book" invocation is all three together (above). Output:
+
+```
+entity,transcripts,with_findings,finding_count,claimable_band
+56b58286af801f06,14,12,18,"$25,000-$99,999"
+a4ea190d9ec4131b,17,9,11,"$5,000-$24,999"
+baabebd59725918e,8,0,0,$0
+```
+
+When that same EIN later shows up in our onboarding flow, we compute the same HMAC with the shared secret and join. No raw transcripts cross the wire. The partner's compliance team has clean cover.
+
 ## Worked example
 
 The `examples/transcripts/` folder ships with four synthetic IRS Account Transcripts you can run the scorer against to verify it works end-to-end. All entity names, EINs, dollar amounts, and dates are fictional (characters borrowed from *Better Call Saul*).

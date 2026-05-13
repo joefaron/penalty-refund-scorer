@@ -32,11 +32,14 @@ import (
 
 func main() {
 	var (
-		root    = flag.String("root", "", "PDF root (per-entity subdirs)")
-		jsonIn  = flag.String("json", "", "Synthetic transactions JSON input")
-		out     = flag.String("out", "", "CSV output path (stdout if empty)")
-		jsonOut = flag.String("json-out", "", "Optional per-entity JSON dir")
-		minClm  = flag.String("min-claim", "", "Min claim threshold dollars (default 25, 0 = no floor)")
+		root     = flag.String("root", "", "PDF root (per-entity subdirs)")
+		jsonIn   = flag.String("json", "", "Synthetic transactions JSON input")
+		out      = flag.String("out", "", "CSV output path (stdout if empty)")
+		jsonOut  = flag.String("json-out", "", "Optional per-entity JSON dir")
+		minClm   = flag.String("min-claim", "", "Min claim threshold dollars (default 25, 0 = no floor)")
+		hmacKey  = flag.String("hmac-key", "", "HMAC-SHA256 entity identifiers with this key. Replaces entity/ein_last4/irs_name in the CSV with a stable hash. For partner-handoff workflows where the partner runs the scorer and ships back the CSV without disclosing identifiers.")
+		bands    = flag.Bool("bands", false, "Quantize our_total into bands ($0 / $0-4,999 / $5,000-24,999 / $25,000-99,999 / $100,000+) and suppress per-finding rows. Lower-precision output for use cases where exact dollars are over-disclosing.")
+		bucketBy = flag.String("bucket-by", "", "Group PDFs into entities by 'ein' (uses transcript EIN-last-4) instead of by folder/filename. Useful when partner archives have flat directories.")
 	)
 	flag.Parse()
 
@@ -78,6 +81,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Partner-handoff transforms. Bucketing first so HMAC sees the final
+	// entity identity; banding is applied at CSV write time.
+	switch *bucketBy {
+	case "":
+		// keep folder/filename bucketing
+	case "ein":
+		entities = rebucketByEin(entities)
+	default:
+		fmt.Fprintln(os.Stderr, "--bucket-by: only 'ein' is supported")
+		os.Exit(2)
+	}
+	if *hmacKey != "" {
+		applyHMACToEntities(entities, *hmacKey)
+	}
+
 	writer := os.Stdout
 	if *out != "" {
 		f, ferr := os.Create(*out)
@@ -88,7 +106,7 @@ func main() {
 		defer f.Close()
 		writer = f
 	}
-	if werr := writeCSV(writer, entities); werr != nil {
+	if werr := writeCSV(writer, entities, *bands); werr != nil {
 		fmt.Fprintln(os.Stderr, "write csv:", werr)
 		os.Exit(1)
 	}
@@ -510,11 +528,19 @@ func parseAnyDate(s string) (time.Time, error) {
 // --- CSV output ---
 
 // writeCSV emits one row per finding (with per-entity totals repeated), plus
-// 0-finding entities get one summary row with empty finding fields. Mirrors
-// pilot_comparison_detailed.csv columns.
-func writeCSV(w io.Writer, entities []entityResult) error {
+// 0-finding entities get one summary row with empty finding fields.
+//
+// When bands is true the output is collapsed to one row per entity: the
+// our_total dollars are replaced by a band label, by_tc / per-finding columns
+// are dropped, and a finding_count column is added. Used for partner-handoff
+// CSVs where exact dollar amounts are over-disclosing.
+func writeCSV(w io.Writer, entities []entityResult, bands bool) error {
 	cw := csv.NewWriter(w)
 	defer cw.Flush()
+
+	if bands {
+		return writeBandedCSV(cw, entities)
+	}
 
 	headers := []string{
 		"entity", "ein_last4", "irs_name",
