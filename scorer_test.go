@@ -396,7 +396,7 @@ func TestHumanizeBundledBasename(t *testing.T) {
 		"apr30-mesa-verde-corp.pdf":        "Mesa Verde Corp",
 		"2026-05-06-kettleman-group.pdf":   "Kettleman Group",
 		"some_entity_name.pdf":             "Some Entity Name",
-		"PreciousGems.pdf":                 "Preciousgems",
+		"AlphaWidgets.pdf":                 "Alphawidgets",
 	}
 	for in, want := range cases {
 		got := humanizeBundledBasename(in)
